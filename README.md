@@ -1,7 +1,7 @@
 # BoatAttitude
 This Delphi Firemonkey 3D sample app uses phone sensors to position a sailboat. 
-It is a FiremonkeySensorFusion usage sample ( see /omarreis/FiremonkeySensorFusion )
-Delphi's Gyro sample app tries to this, but does not quite get there. 
+It is a FiremonkeySensorFusion usage sample ( see /omarreis/FiremonkeySensorFusion).
+Delphi's Gyro sample app tries to do this, but does not quite get there. 
 
 Compiled with D10.3.3 and tested on Android and iOS.
 
@@ -26,7 +26,7 @@ Sensor readings are used to rotate a camera pointing to
 the boat.
 
 ## rotation quaternion
-Firemonkey 3D uses TControl3D.RotationAngle to set object rotations. 
+Firemonkey 3D uses TControl3D.RotationAngle vector to set object rotations. 
 These are known as Euler angles. Using rotation angles in this way has a couple problems.
 Setting Euler angles can lead to the so called "gymbal lock", with loss of freedom degree.
 It is better to use quaternions to set object rotations.
