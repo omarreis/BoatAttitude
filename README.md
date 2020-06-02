@@ -50,7 +50,7 @@ or manipulating the 3d matrix.  This is worked around using a helper class
 
 This allows manipulating the object 3d rotation matrix.
 
-Check this tiktiok video:
+Check this tiktok video:
 
 https://vm.tiktok.com/E2eQqP
 
