@@ -3,6 +3,8 @@ This Delphi Firemonkey 3D sample app uses phone sensors to position a sailboat.
 It is a FiremonkeySensorFusion usage sample ( see /omarreis/FiremonkeySensorFusion )
 Delphi's Gyro sample app tries to this, but does not quite get there. 
 
+![app screenshot](BoatAttitudeShot.PNG)
+
 ## FiremonkeySensorFusion
 
 FiremonkeySensorFusion is a cross platform (Android and iOS) 
@@ -46,5 +48,5 @@ or manipulating the 3d matrix.  This is worked around using a helper class
 
 This allows manipulating the object 3d rotation matrix.
 
-![app screenshot](BoatAttitudeShot.PNG)
+
 
