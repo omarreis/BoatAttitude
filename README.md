@@ -50,6 +50,18 @@ or manipulating the 3d matrix.  This is worked around using a helper class
 
 This allows manipulating the object 3d rotation matrix.
 
+    phone attitude axis ( Euler angles )
+         -Y     Z       altitude X 
+          |    /        heading  Y 
+          |   /         roll     Z 
+      /=======\
+      |   | / |
+      |   |/  |
+      |   *---|--------- X
+      |       |
+      |   O   |
+      \-------/
+
 The app can set rotations using both methods (checkbox "Use quaternion")
 If you use RotationAngle, you will note that if you move the phone around
 and then back to original position, the boat is no longer in the
