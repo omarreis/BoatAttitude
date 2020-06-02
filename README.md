@@ -24,7 +24,7 @@ the boat.
 ## rotation quaternion
 Firemonkey 3D uses TControl3D.RotationAngle to set object rotations. 
 These are known as Euler angles. Using rotation angles in this way has a couple problems.
-Setting Euler angles can lead to the so called "gymbal lock", with loss of freedon degrees.
+Setting Euler angles can lead to the so called "gymbal lock", with loss of freedom degree.
 It is better to use quaternions to set object rotations.
 
 Problem is Firemonkey TControl3D has no method to set the quaternion directly
