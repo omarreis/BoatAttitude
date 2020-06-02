@@ -20,10 +20,9 @@ These are also known as Yaw,Pitch,Roll or Azimuth,elevation,roll or Heading,alti
 GPS reading is used to calculate the magnetic declination,
 so we can obtain the true heading from the mag heading.
 
-In this example we use the sensor readings to orient a 3D sailboat. 
+In this example we use the sensor readings to orient a 3D sailboat scene. 
 Also included: sea surface, cardinal points ( N,S,E and W)
-Sensor readings are used to rotate a camera pointing to
-the boat.
+Sensor readings are used to rotate a camera pointing to the boat.
 
 ## rotation quaternion
 Firemonkey 3D uses TControl3D.RotationAngle vector to set object rotations. 
