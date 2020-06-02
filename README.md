@@ -70,7 +70,12 @@ If you use RotationAngle, you will note that if you move the phone around
 and then back to original position, the boat is no longer in the
 original position. Using the quaternion is better.
 
-Check this tiktok video:
+## dependencies
+
+* DelphiWorlds Kastri-free - https://github.com/DelphiWorlds/KastriFree
+* FiremonkeySensorFusion - https://github.com/omarreis/FiremonkeySensorFusion 
+
+## Check this tiktok video:
 
 https://vm.tiktok.com/E2eQqP
 
