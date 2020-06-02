@@ -31,7 +31,7 @@ These are known as Euler angles. Using rotation angles in this way has a couple 
 Setting Euler angles can lead to the so called "gymbal lock", with loss of freedom degree.
 It is better to use quaternions to set object rotations.
 
-Problem is Firemonkey TControl3D has no method to set the quaternion directly
+Problem is Firemonkey TControl3D has no public method to set the quaternion directly
 or manipulating the 3d matrix.  This is worked around using a helper class
 (this solution was copied from https://github.com/tothpaul/Delphi/blob/master/Google%20Cardboard/4%20FullDemo/Main.pas )
 
@@ -49,6 +49,10 @@ or manipulating the 3d matrix.  This is worked around using a helper class
      end;
 
 This allows manipulating the object 3d rotation matrix.
+
+Euler angle rotations are not comutative. Different order of rotations leads to different final position.  
+The quaternion generated in this sample uses the plane take off sequence: first yaw while taxing,
+then pitching on the runway, then rolling on the air.
 
     phone attitude axis ( Euler angles )
          -Y     Z       altitude X 
