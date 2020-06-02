@@ -30,7 +30,6 @@ Problem is Firemonkey TControl3D has no method to set the quaternion directly
 or manipulating the 3d matrix.  This is worked around using a helper class
 (this solution was copied from https://github.com/tothpaul/Delphi/blob/master/Google%20Cardboard/4%20FullDemo/Main.pas )
 
-   ´´´Delphi
      type  // helper class to help manipulating the matrix instead of changing RotationAngle
        TControl3DHelper = class helper for TControl3D
          procedure SetMatrix(const M: TMatrix3D);
@@ -43,7 +42,6 @@ or manipulating the 3d matrix.  This is worked around using a helper class
        RebuildRenderingList;
        Repaint;
      end;
-   ´´´
 
 This allows manipulating the object 3d rotation matrix.
 
