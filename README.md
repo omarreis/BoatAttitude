@@ -14,7 +14,7 @@ The object receives sensor readings from the phone/tablet sensors and outputs ph
 of rectangular coordinates (aka Euler angles ).
 
 These are also known as Yaw,Pitch,Roll or Azimuth,elevation,roll or Heading,altitude,roll.
-This profusion of names causes some confision.
+This profusion of names causes some confusion.
 
 GPS reading is used to calculate the magnetic declination (using WMM model), 
 so we can obtain the true heading from the magnetic heading.
