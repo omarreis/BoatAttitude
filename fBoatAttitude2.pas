@@ -256,24 +256,28 @@ begin
        ' Roll:'+ Trim(Format('%5.0f°',[aRoll]));   // roll  -- az
   Label1.Text := s;                                // alt   -- roll
 
-  labX.Text := Format('%5.0f°', [ tbX.Value ]);
-  labY.Text := Format('%5.0f°', [ tbY.Value ]);
+  labX.Text := Format('%5.0f°', [ tbX.Value ]);   // trackbars are used to add extra rotations
+  labY.Text := Format('%5.0f°', [ tbY.Value ]);   // to sensor readings ( to "reset" object attitude )
   labZ.Text := Format('%5.0f°', [ tbZ.Value ]);
   // show GPS pos
 
   s := Format('%5.1f°', [fMagAccelFusion.fLocationLat])+' / '+Format('%5.1f°', [fMagAccelFusion.fLocationLon]);
   labAttitude.Text := s;
 
-  // inverting angles ?
-  if cbInvert.IsChecked then aSignal := -1  // When angles are inverted, focused object reacts to phone movent to stay put
-    else aSignal := +1;      // boat attitude = phone attitude
+  // inverting angles ?        ( this is false and hiden for now )
+  if cbInvert.IsChecked then aSignal := -1
+    else aSignal := +1;                // camera attitude = phone attitude
 
-  if not cbQuaternion.IsChecked then   //  default rotation method
+  if not cbQuaternion.IsChecked then   //  default rotation method ( wrong! )
     begin
       // problem here: using Euler angles to continuously control obj rotation is trouble ( gymbal lock looses degree of freedon )
-      dummyCameraGroup.RotationAngle.X := normalize360( aSignal*(aAlt +tbX.Value)+fDefaultRotation.X );
-      dummyCameraGroup.RotationAngle.Y := normalize360( aSignal*(aHead+tbY.Value)+fDefaultRotation.Y );
-      dummyCameraGroup.RotationAngle.Z := normalize360( aSignal*(aRoll+tbZ.Value)+fDefaultRotation.Z );
+      // phone ref
+      // altitude elevation pitch  X
+      // heading Az Yaw            Y
+      // roll                      Z
+      dummyCameraGroup.RotationAngle.X := normalize360( aSignal*( aAlt  +tbX.Value)+fDefaultRotation.X );
+      dummyCameraGroup.RotationAngle.Y := normalize360( aSignal*( aHead +tbY.Value)+fDefaultRotation.Y );
+      dummyCameraGroup.RotationAngle.Z := normalize360( aSignal*( aRoll +tbZ.Value)+fDefaultRotation.Z );
     end
     else begin  // vector algebra ahead
       aSensorVec := TVector3D.Create( aAlt,aHead,aRoll  );                   //sensor reading
