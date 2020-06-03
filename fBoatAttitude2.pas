@@ -1,6 +1,7 @@
-unit fBoatAttitude2;    // 3d boat scene w/ camera controlled by phone sensors
+unit fBoatAttitude2;    // 3d boat scene w/ camera controlled by phone attitude
 // --- by oMAR jun20 --//
-//
+//     see https://github.com/omarreis/BoatAttitude
+//-----------------------------------------------------------------------------
 
 interface
 
@@ -8,16 +9,17 @@ uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms3D, FMX.Types3D, FMX.Forms, FMX.Graphics, FMX.Dialogs,
   System.Math.Vectors,
-  FMX.Objects3D,
-  FMX.MaterialSources, FMX.Controls3D, FMX.Controls.Presentation, FMX.StdCtrls,
+  FMX.Objects3D, FMX.MaterialSources, FMX.Controls3D, FMX.Controls.Presentation, FMX.StdCtrls,
   FMX.Layers3D,
+  FMX.Platform,
+
   {$IFDEF ANDROID}
   FMX.Platform.Android,
-  DW.PermissionsRequester,
-  DW.PermissionsTypes,    // Kastri Android API Level 26 handling
+  DW.PermissionsRequester,   // Must have /D|elphiWorlds/KastriFree for Android permissions
+  DW.PermissionsTypes,       // Android API Level 26+ permissions handling
   {$ENDIF ANDROID}
-  MagnetometerAccelerometerFusion, FireDAC.Stan.Intf, FireDAC.Comp.BatchMove,
-  FireDAC.Comp.BatchMove.Text, FMX.Media; // TMagnetoAccelerometerFusion
+  MagnetometerAccelerometerFusion,  // TMagnetoAccelerometerFusion
+  FMX.Media;
 
 type
   TFormBoatAttitude = class(TForm3D)
@@ -34,7 +36,6 @@ type
     labZ: TLabel;
     Camera1: TCamera;
     dummyCameraGroup: TDummy;
-    FDBatchMoveTextReader1: TFDBatchMoveTextReader;
     MediaPlayer1: TMediaPlayer;
     labAttitude: TLabel;
     TextureMaterialSource1: TTextureMaterialSource;
@@ -67,6 +68,7 @@ type
     FRequester: TPermissionsRequester;
     {$ENDIF Android}
     procedure FusionSensorHeadingAltitudeChanged(Sender:TObject);
+    function  AppEventHandler(AAppEvent: TApplicationEvent;  AContext: TObject): Boolean;
     {$IFDEF Android}
     procedure PermissionsResultHandler(Sender: TObject; const ARequestCode: Integer; const AResults: TPermissionResults);
     {$ENDIF Android}
@@ -80,35 +82,12 @@ implementation
 
 {$R *.fmx}
 
-{$IFDEF Android}  // request permissions to work
+{$IFDEF Android}  // Android permissions
 const
   cPermissionsBoatAttitude=3;
   cPermissionAccessCoarseLocation = 'android.permission.ACCESS_COARSE_LOCATION';
   cPermissionAccessFineLocation   = 'android.permission.ACCESS_FINE_LOCATION';
 {$ENDIF Android}  // request permissions to work
-
-// this fn was copyed from:
-//   https://github.com/tothpaul/Delphi/blob/master/Google%20Cardboard/4%20FullDemo/Main.pas
-// It works around RotationAngle setting to use the quaternion
-(*** Helper function to convert a rotation vector to a normalized quaternion.
-  *  Given a rotation vector (presumably from a ROTATION_VECTOR sensor), returns a normalized
-  *  quaternion in the array Q.  The quaternion is stored as [w, x, y, z]
-  *  @param rv the rotation vector to convert
-  *  @param Q an array of floats in which to store the computed quaternion
-  *)
-procedure getQuaternionFromVector(var Q: TQuaternion3D; const rv: TVector3D);  // vector rv=Euler coordinates
-begin
-  Q.RealPart := 1 - rv.x * rv.x - rv.y * rv.y - rv.z * rv.z;
-  if Q.RealPart > 0 then
-  begin
-    Q.RealPart := Sqrt(Q.RealPart);
-  end else begin
-    Q.RealPart := 0;
-  end;
-  Q.ImagPart.x := rv.x;
-  Q.ImagPart.y := rv.y;
-  Q.ImagPart.z := rv.z;
-end;
 
 function deg2rad(const d:Single):Single;
 begin
@@ -124,9 +103,9 @@ begin
   p := deg2rad(pitch);
   r := deg2rad(roll);
 
-  cy := cos(y * 0.5);           sy := sin(y * 0.5);
-  cp := cos(p * 0.5);           sp := sin(p * 0.5);
-  cr := cos(r * 0.5);           sr := sin(r * 0.5);
+  cy := cos(y * 0.5);   sy := sin(y * 0.5);
+  cp := cos(p * 0.5);   sp := sin(p * 0.5);
+  cr := cos(r * 0.5);   sr := sin(r * 0.5);
 
   q.RealPart   := cr * cp * cy + sr * sp * sy;
   q.ImagPart.x := sr * cp * cy - cr * sp * sy;
@@ -147,25 +126,50 @@ begin
   Repaint;
 end;
 
+
+
 procedure TFormBoatAttitude.Form3DCreate(Sender: TObject);
+var AppEventSvc: IFMXApplicationEventService;
+   {$IFDEF IOS} AEService: IFMXApplicationEventService;  {$ENDIF IOS}
 begin
   //create sensors
-  fMagAccelFusion := TMagnetoAccelerometerFusion.Create(Self);      //use fusion
-  //fMagAccelFusion.OnAccelerometerChange  := FusionSensorAccelChanged;
+  fMagAccelFusion := TMagnetoAccelerometerFusion.Create(Self);           //use sensor fusion
+  //fMagAccelFusion.OnAccelerometerChange  := FusionSensorAccelChanged;  //not using those
   //fMagAccelFusion.OnMagnetometerChange   := FusionSensorMagChanged;
-  fMagAccelFusion.OnHeadingAltitudeChange:= FusionSensorHeadingAltitudeChanged;
-
-  // Timer1.Enabled := True;
+  fMagAccelFusion.OnHeadingAltitudeChange:= FusionSensorHeadingAltitudeChanged; // attitude change handler
 
   fDefaultRotation := TVector3D.Create(0,0,0);
+
   {$IFDEF ANDROID}
-  //permission requester for API 26+ permissions
+  if TPlatformServices.Current.SupportsPlatformService(IFMXApplicationEventService, IInterface(AppEventSvc)) then
+    AppEventSvc.SetApplicationEventHandler(AppEventHandler);
+
+  //permission requester for Android API 26+ permissions
   FRequester := TPermissionsRequester.Create;
   FRequester.OnPermissionsResult := PermissionsResultHandler;
   {$ENDIF ANDROID}
-  // layerDisplay.Position.Z := 10;  //position display far from camera
+
+  {$IFDEF IOS} // Home btn handler for iOS
+  if TPlatformServices.Current.SupportsPlatformService(StringToGUID('{F3AAF11A-1678-4CC6-A5BF-721A24A676FD}'),
+      IInterface(AEService)) then
+        AEService.SetApplicationEventHandler(AppEventHandler);
+  {$ENDIF IOS}
 end;
 
+// handle AppEvents to detect Home btn pressed ( going to BG, disable sensors )
+function TFormBoatAttitude.AppEventHandler(AAppEvent: TApplicationEvent;  AContext: TObject): Boolean;
+var s:String;
+begin
+  if (AAppEvent =  TApplicationEvent.EnteredBackground) then  // Home btn
+     begin
+       fMagAccelFusion.StartStopSensors({bStart:} false );  //restart sensor feed
+     end
+  else if (AAppEvent = TApplicationEvent.BecameActive )  then
+    begin   //returned from Home
+       fMagAccelFusion.StartStopSensors({bStart:} true );   //stop sensors
+    end;
+  Result := True; // apparently this doesn't matter on iOS
+end;
 
 procedure TFormBoatAttitude.Form3DActivate(Sender: TObject);
 begin
@@ -173,23 +177,20 @@ begin
   FRequester.RequestPermissions([ cPermissionAccessCoarseLocation,   // location (gyro,aceler)
                                   cPermissionAccessFineLocation],
                                   cPermissionsBoatAttitude);     // commented out cPermissionAccessMockLocation
-  //  startSensorsAndCamera;   isso é chamado qdo chegar a perm estiver granted (positiva e operante)
+  //  On Android, sensors are started after permission is checked
   {$ENDIF Android}
 
   {$IFDEF IOS}
   fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed
   {$ENDIF IOS}
-
-  dummyCameraGroup.Visible := true;  // show stuff at start up that might be left invisible at design time
+  // show all stuff that might be left invisible at design time
+  dummyCameraGroup.Visible := true;
   dummyBoatGroup.Visible := true;
-
   modelBoat.Visible := true;
   modelLiteSpi.Visible := true;
   planeMainSail.Visible := true;
   layerDisplay.Visible := true;
-
 end;
-
 
 {$IFDEF Android}      // Android requires permissions for things like sensors
 procedure TFormBoatAttitude.PermissionsResultHandler(Sender: TObject; const ARequestCode: Integer; const AResults: TPermissionResults);
@@ -199,24 +200,16 @@ begin
   case ARequestCode of  //Android permission request handler
     cPermissionsBoatAttitude:
     begin
-      if AResults.AreAllGranted then  //all granted, start sensors and camera (Android)
+      if AResults.AreAllGranted then  //all granted, start sensors (Android)
         begin
-          //labStatusMsg.Text := sPermissionsGranted;
-          //LogMsg(labStatusMsg.Text);
           fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed
         end
-        else begin
-          //get denied permissions
+        else begin   // denied permissions
           LDeniedPermissions := '';
           LDeniedResults := AResults.DeniedResults;
           for I := 0 to LDeniedResults.Count - 1 do
             LDeniedPermissions := LDeniedPermissions + #13#10 + LDeniedResults[I].Permission;
           //ShowMessage('You denied permissions ' + LDeniedPermissions + ' I need those !');
-          ////labStatusMsg.Text := 'You denied permissions '+LDeniedPermissions+'. Functionality lost';
-          ////LogMsg(labStatusMsg.Text);
-          // dont do that ! hangs the app
-          // getGyroAndMagneticSensors;    // start anyway !!
-          // startSensorsAndCamera;        // start stuff after restoring settings
         end;
     end;
   end;
@@ -226,7 +219,7 @@ end;
 //------------------------------------------
 //       phone attitude axis ( Euler angles )
 //          -Y     Z       altitude X up positive
-//           |    /        heading  Y down positive                 counterclockwise positive ( right hand rule )
+//           |    /        heading  Y down positive
 //           |   /         roll     Z positive into the screen
 //       /=======\
 //       |   | / |
@@ -245,7 +238,7 @@ begin
   while (Result>=360) do Result := Result -360;
 end;
 
-// handler for sensor fusion readings
+// handler for sensor fusion readings ( phone attitude chg )
 procedure TFormBoatAttitude.FusionSensorHeadingAltitudeChanged(Sender:TObject);
 var aAlt,aHead,aRoll:Single; s:String;  aSignal:integer;
   Q:TQuaternion3D;
@@ -275,8 +268,6 @@ begin
   if cbInvert.IsChecked then aSignal := -1  // When angles are inverted, focused object reacts to phone movent to stay put
     else aSignal := +1;      // boat attitude = phone attitude
 
-  // dummy holds camera and display
-
   if not cbQuaternion.IsChecked then   //  default rotation method
     begin
       // problem here: using Euler angles to continuously control obj rotation is trouble ( gymbal lock looses degree of freedon )
@@ -288,15 +279,11 @@ begin
       aSensorVec := TVector3D.Create( aAlt,aHead,aRoll  );                   //sensor reading
       tbVec      := TVector3D.Create(tbX.Value, tbY.Value, tbZ.Value );      //trackbars (0..360)
       defVec     := TVector3D.Create(fDefaultRotation.X,fDefaultRotation.Y,fDefaultRotation.Z);   // =0
-
       aSensorVec := (aSensorVec+tbVec)*aSignal + defVec;    // sensor reading + trackbars + default rotation
 
-      // aSensorVec := aSensorVec.Normalize;         // set vec len=1
-      // getQuaternionFromVector(Q, aSensorVec);   // generate quaternion from sensor vector
+      ToQuaternion({yaw:}aSensorVec.z,{pitch:}aSensorVec.y,{roll:}aSensorVec.x, Q ); // axis order found by trial n error :( ?
 
-      ToQuaternion({yaw:}aSensorVec.z,{pitch:}aSensorVec.y,{roll:}aSensorVec.x, Q );  // order found by trial n error :(
-
-      dummyCameraGroup.SetMatrix(Q);                   // rotate boat using quaternion
+      dummyCameraGroup.SetMatrix(Q);   // rotate camera pointing to boat using quaternion
     end;
 end;
 
