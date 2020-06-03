@@ -156,17 +156,17 @@ begin
   {$ENDIF IOS}
 end;
 
-// handle AppEvents to detect Home btn pressed ( going to BG, disable sensors )
+//handle AppEvents to detect Home btn pressed ( going to BG, disable sensors )
 function TFormBoatAttitude.AppEventHandler(AAppEvent: TApplicationEvent;  AContext: TObject): Boolean;
-var s:String;
+var s:String;
 begin
   if (AAppEvent =  TApplicationEvent.EnteredBackground) then  // Home btn
      begin
-       fMagAccelFusion.StartStopSensors({bStart:} false );  //restart sensor feed
+       fMagAccelFusion.StartStopSensors({bStart:} false );  //stop sensor feed
      end
   else if (AAppEvent = TApplicationEvent.BecameActive )  then
     begin   //returned from Home
-       fMagAccelFusion.StartStopSensors({bStart:} true );   //stop sensors
+       fMagAccelFusion.StartStopSensors({bStart:} true );   //restart sensor feed
     end;
   Result := True; // apparently this doesn't matter on iOS
 end;
