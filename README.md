@@ -1,7 +1,7 @@
 # BoatAttitude
 This Delphi Firemonkey 3D sample app uses phone sensors to position a sailboat. 
 It is a FiremonkeySensorFusion usage sample ( see /omarreis/FiremonkeySensorFusion).
-Delphi's *Gyroscope* sample app tries to do that, but does not quite get there. 
+Delphi's *Gyroscope* sample app tries to do that, but does not quite gets there. 
 
 Compiled with D10.3.3 and tested on Android and iOS.
 
