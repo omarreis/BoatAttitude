@@ -82,10 +82,10 @@ https://vm.tiktok.com/E2eQqP
 
 ## AirlinerAttitude
 AirlinerAttitude app (also in  this repository) is a similar sample app, this time featuring a airliner plane model.
-Phone attitude controls:
+Phone attitude sensors control:
 * phone true heading rotates the compass disk.  
-* airplane pitch is set to roll/2, so we can see the plane side as it rolls ( like a real plane would do, I suppose ).
-* airplane roll and pitch same as phone.
+* airplane yaw is set to roll/2, so we can see the plane side as it rolls (like a real plane would do, I suppose).
+* otherwise, airplane pitch and roll same as phone's.
 
 ![app screenshot](AirlinerAttitudeShot.PNG)
 
