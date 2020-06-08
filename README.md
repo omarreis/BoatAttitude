@@ -3,7 +3,7 @@ This Delphi Firemonkey 3D sample app uses phone sensors to position a sailboat.
 It is a FiremonkeySensorFusion usage sample ( see /omarreis/FiremonkeySensorFusion).
 Delphi's *Gyroscope* sample app tries to do that, but does not quite gets there. 
 
-"BoatAttitude" is a bad name since what changes is the camera orientation.
+("BoatAttitude" is a bad name since what changes is the camera orientation).
 
 Compiled with D10.3.3 and tested on Android and iOS.
 
@@ -80,4 +80,12 @@ Bottom line: use quaternion for setting object rotations.
 
 https://vm.tiktok.com/E2eQqP
 
+## AirlinerAttitude
+AirlinerAttitude app (also in  this repository) is a similar sample app, this time featuring a airliner plane model.
+Phone attitude controls:
+* phone true heading rotates the compass disk.  
+* airplane pitch is set to roll/2, so we can see the plane side as it rolls ( like a real plane would do, I suppose ).
+* airplane roll and pitch same as phone.
+
+![app screenshot](AirlinerAttitudeShot.PNG)
 
