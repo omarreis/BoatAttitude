@@ -9,6 +9,8 @@ Compiled with D10.3.3 and tested on Android and iOS.
 
 ![app screenshot](BoatAttitudeShot.PNG)
 
+Tags: #Delphi #Firemonkey #Sensors #iOS #Android
+
 ## FiremonkeySensorFusion
 
 FiremonkeySensorFusion is a cross platform (Android and iOS) sensor fusion ( GPS + Accelerometer + Magnetometer )
