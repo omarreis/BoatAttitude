@@ -48,7 +48,8 @@ type
     procedure FusionSensorAccelChanged(Sender:TObject);            //acceleration event
     procedure FusionSensorMagChanged(Sender:TObject);              //magnetic event
     procedure FusionSensorHeadingAltitudeChanged(Sender:TObject);
-    procedure updateLocationLabels;  //combined
+    procedure updateLocationLabels;
+    procedure DoStartSensors;  //combined
   public
     fMagAccelFusion:TMagnetoAccelerometerFusion;
     constructor Create(AOwner: TComponent); override;
@@ -63,6 +64,9 @@ implementation
 {$R *.fmx}
 
 uses
+  System.Permissions,  // permission request for Android
+  FMX.DialogService,
+
   System.DateUtils;
 
 
@@ -79,13 +83,6 @@ begin
   fMagAccelFusion.OnAccelerometerChange  := FusionSensorAccelChanged;
   fMagAccelFusion.OnMagnetometerChange   := FusionSensorMagChanged;
   fMagAccelFusion.OnHeadingAltitudeChange:= FusionSensorHeadingAltitudeChanged;
-
-  //available sensors
-  // for LSensorType := Succ(Low(TSensorType)) to High(TSensorType) do
-  // begin
-  //   if TSensor.IsSensorTypeSupported(LSensorType) then
-  //     SensorComboBox.Items.Add(TSensor.SensorNames[LSensorType]);
-  // end;
 end;
 
 destructor TfrmMain.Destroy;
@@ -94,12 +91,26 @@ begin
   inherited;
 end;
 
+procedure TfrmMain.DoStartSensors;
+{$IFDEF ANDROID} const PermissionAccessFineLocation = 'android.permission.ACCESS_FINE_LOCATION'; {$ENDIF}
+begin
+{$IFDEF ANDROID}
+  PermissionsService.RequestPermissions([PermissionAccessFineLocation],
+    procedure(const APermissions: TArray<string>; const AGrantResults: TArray<TPermissionStatus>)
+    begin
+      if (Length(AGrantResults)=1) and (AGrantResults[0]=TPermissionStatus.Granted) then
+        fMagAccelFusion.StartStopSensors({bStart:} true )
+      else TDialogService.ShowMessage('Location permission not granted');
+    end
+  );
+{$ELSE}  //iOS
+   fMagAccelFusion.StartStopSensors({bStart:} true );
+{$ENDIF}
+end;
+
 procedure TfrmMain.FormActivate(Sender: TObject);
 begin
-  fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed
-  if fMagAccelFusion.fErrorMessage<>'' then
-
-
+  DoStartSensors;  //activate on start
 end;
 
 procedure TfrmMain.FusionSensorAccelChanged(Sender:TObject);
