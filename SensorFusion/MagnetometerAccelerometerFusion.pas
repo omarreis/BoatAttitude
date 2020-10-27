@@ -1,29 +1,39 @@
-unit MagnetometerAccelerometerFusion;  // Android/iOS sensor fusion: Accelerometer+Magnetometer
-// Calculates tilt compensated Heading (N based), plus altitude and phone roll (the last two require the phone vertical)
+unit MagnetometerAccelerometerFusion;  //------------------------------
+ //-----------------------------------//
+// Android/iOS/Windows cross platform sensor fusion: Accelerometer+Magnetometer+GPS
+// Calculates tilt compensated Heading (N based), plus altitude and phone roll
+//  (the last two require the phone vertical)
+// set20: Om: added support to Windows sensor simulation ( not real sensors )
+
 interface
 
 uses
   System.SysUtils,System.Classes, System.Sensors, System.Sensors.Components,
   FMX.Forms,
-  DW.Sensor;     // KastriFree Sensors
+  DW.Sensor;     // KastriFree Sensors - add paths:
 
 Type
-  TMagnetoAccelerometerFusion=class
+  // callback to save
+  TLoggerProc=procedure( Sender:TObject; const aMsg:String) of object;
+
+  TMagnetoAccelerometerFusion=class  // with GPS and magnetic declination
   private
     [Weak] fParentForm:TCommonCustomForm;  //changed from TForm that to accept TForm and TForm3D
 
     fAccelSensor: TSensor;        // DW sensors
     fMagSensor:   TSensor;
 
-    fLocationSensor: TLocationSensor;
+    fLocationSensor: TLocationSensor;   // need lat,lon to get magnetic declination
 
-    fAccelSensorTime: TDateTime;  // last sensor event
-    fMagSensorTime: TDateTime;
+    fAccelSensorTime: TDateTime;        // last sensor event
+    fMagSensorTime: TDateTime;          // same
     fCompassEventTime: TDateTime;
 
     fOnAccelerometerChange:TNotifyEvent;    //fusion events
     fOnMagnetometerChange:TNotifyEvent;
     fOnHeadingAltitudeChange:TNotifyEvent;
+
+    fLoggerProc:TLoggerProc;   // handler to log msgs
 
     procedure MagSensorValuesChangedHandler(Sender: TObject; const AValues: TSensorValues; const ATimestamp: TDateTime);
     procedure AccelSensorValuesChangedHandler(Sender: TObject; const AValues: TSensorValues; const ATimestamp: TDateTime);
@@ -33,7 +43,8 @@ Type
     fGx,fGy,fGz,                  //accelerometer vec
     fMx,fMy,fMz:Single;           //magnetometer vec
 
-    fTCMagHeading,fTCTrueHeading,fAltitude,fRoll:Single; //results in rectangular coordinates Azimuth/elevation/roll
+    fTCMagHeading,fTCTrueHeading,fAltitude,fRoll:Single;
+    //results in rectangular coordinates Azimuth/elevation/roll
 
     fAccelMS,fMagMS:int64;        //time in ms between sensor events
     fCompassMinTime:int64;        //minimun time between compass events
@@ -51,6 +62,7 @@ Type
     Destructor  Destroy; override;
     procedure   StartStopSensors(bStart: boolean);
     property    LocationSensor: TLocationSensor read fLocationSensor;
+    property    LoggerProc:TLoggerProc read fLoggerProc write fLoggerProc;
 
     property    OnAccelerometerChange:TNotifyEvent   read fOnAccelerometerChange   write fOnAccelerometerChange;
     property    OnMagnetometerChange:TNotifyEvent    read fOnMagnetometerChange    write fOnMagnetometerChange;
@@ -64,6 +76,7 @@ implementation //---------------------------------------------------------------
 uses
   {$IFDEF ANDROID}
   Androidapi.JNI.Interfaces.JGeomagneticField,  // mag declination  calc using WMM
+  // iOS version gets mag declination from Location component ( trueheading - magheading )
   {$ENDIF ANDROID}
   System.DateUtils,
   System.Math;
@@ -120,6 +133,7 @@ begin
   fOnAccelerometerChange   :=nil;
   fOnMagnetometerChange    :=nil;
   fOnHeadingAltitudeChange :=nil;
+  fLoggerProc              :=nil;
 
   fMagSensorTime     :=0;
   fCompassEventTime  :=0;
@@ -128,6 +142,13 @@ begin
   fLocationTime      :=0;
   fLocationLat       :=0;
   fLocationLon       :=0;
+
+  {$IFDEF MsWindows}
+  fMagDeclination    := -21.5;     // set some simulation values for Windows
+  fLocationTime      := Now;
+  fLocationLat       := -23.5;    // home
+  fLocationLon       := -46.5;
+  {$ENDIF MsWindows}
 
   //create sensors
 
@@ -149,8 +170,8 @@ begin
 
   fCompassMinTime := 200;  // min compass event frequency in ms ( default=200ms )
 
-  fLocationSensor := TLocationSensor.Create(nil);
-  fLocationSensor.Accuracy := 50.0;
+  fLocationSensor := TLocationSensor.Create( aForm ); //was nil
+  fLocationSensor.Accuracy := 20.0;
   fLocationSensor.OnLocationChanged := LocationSensorLocationChanged;
 
   fErrorMessage:='';
@@ -182,37 +203,44 @@ begin
   Result := nn;
 end;
 
-
-function getGeomagneticDeclination(const aLat,aLon,aAlt:Single):Single;  //for Android only
-var GeoField: JGeomagneticField; tw1,tw2:int64; t0,t:TDatetime;   tm:int64;
+function getGeomagneticDeclination(const aLat,aLon,aAlt:Single):Single;         //Android only
+var GeoField:JGeomagneticField; tw1,tw2:int64; t0,t:TDatetime;   tm:int64;
 begin
-  // here it should have been UTC time, not Local.. but the dif is little
+  // here it should have been UTC time, not Local.. but the difference is small
   tm := System.DateUtils.DateTimeToUnix( Now, {InputAsUTC:} false )*1000;
 
-  // jan20: the line below was required to fix a compiler bug, corrected in Rio, apparently :)
-  //   tm := switchDWords(tm);    // <--- hack tm. Correct some endian problem passing int64 to Java API
+  // jan20: the line below was required to fix a prevous compiler bug, corrected in Rio, apparently :)
+  tm := switchDWords(tm);    // <--- hack tm. Correct some endian problem passing int64 to Java API
   //   see https://stackoverflow.com/questions/53342348/wrong-result-calling-android-method-from-delphi/53373965#53373965
 
   GeoField := TJGeomagneticField.JavaClass.init(aLat,aLon,aAlt,tm );
   Result   := GeoField.getDeclination();
+
 end;
 {$ENDIF ANDROID}
 
 // GPS sensor events
 procedure TMagnetoAccelerometerFusion.LocationSensorLocationChanged(Sender: TObject; const OldLocation,NewLocation: TLocationCoord2D);
-var aMagDec:Single;
+var aMagDec:Single; s:String;
 begin
   fLocationTime  := Now;   //local tm
   fLocationLat   := NewLocation.Latitude;    //just save loc
   fLocationLon   := NewLocation.Longitude;   //all intl lon signal conv
 
+  if Assigned( fLoggerProc ) then  //log location
+    begin
+      s := Format('%5.1f°', [fLocationLat])+' / '+Format('%5.1f°', [fLocationLon])+' / '+Format('%5.1f°', [fMagDeclination]);
+      fLoggerProc(Self, s);
+    end;
+
   // update mag delination
   {$IFDEF Android}    // For Android only. iOS gives True heading directly AFAIK
-  fMagDeclination := getGeomagneticDeclination({Lat:}NewLocation.Latitude ,{Lon:}NewLocation.Longitude, {Alt:} 0 ); // TODO: put a real altitude
+  if (fMagDeclination=0) and (NewLocation.Latitude<>0) then  //teste
+    fMagDeclination := getGeomagneticDeclination({Lat:}NewLocation.Latitude ,{Lon:}NewLocation.Longitude, {Alt:} 0 ); // TODO: put a real altitude
   {$ENDIF Android}
 
   {$IFDEF iOS}
-  // iOS LocationSensor calculates mag decl
+  // iOS LocationSensor calculates mag decl from TrueHeading and MagneticHeading
   if not ( IsNaN(fLocationSensor.Sensor.TrueHeading) or IsNaN(fLocationSensor.Sensor.MagneticHeading) )  then
     begin
       aMagDec := fLocationSensor.Sensor.TrueHeading-fLocationSensor.Sensor.MagneticHeading; //obtain mag dec from GPS sensor
@@ -233,17 +261,17 @@ procedure TMagnetoAccelerometerFusion.AccelSensorValuesChangedHandler(Sender: TO
     const AValues: TSensorValues; const ATimestamp: TDateTime);
 var I,n: Integer;  ms:int64; T:TDatetime;
 begin
-  T  :=Now;
+  T  := Now;
   ms := MilliSecondsBetween(T, fAccelSensorTime);
   if (ms<17) then exit;    // 17ms ~= 1/60s    <======  limit event frequency to 1/60
   fAccelSensorTime := T;
   n := Length(AValues);
   if (n>2) then //min 3 values
     begin
-      fGx:=AValues[0];
-      fGy:=AValues[1];
-      fGz:=AValues[2];
-      fMagMS:=ms;
+      fGx := AValues[0];
+      fGy := AValues[1];
+      fGz := AValues[2];
+      fMagMS := ms;
 
       if Assigned(fOnAccelerometerChange) then fOnAccelerometerChange(Self);
 
@@ -328,7 +356,7 @@ begin
 end;
 
 procedure TMagnetoAccelerometerFusion.StartStopSensors(bStart: boolean);
-var T:TDatetime;
+var T:TDatetime; s:String;
 begin
   T := Now;
   fErrorMessage:='';
@@ -350,7 +378,15 @@ begin
     // TODO:
     if bStart then fErrorMessage := 'Error starting LocationSensor'
       else fErrorMessage := 'Error stopping LocationSensor';
+    if Assigned( fLoggerProc ) then fLoggerProc(Self, fErrorMessage );  //log location
   end;
+
+  if Assigned(fLoggerProc) then
+    begin
+      if fLocationSensor.Active then s:='location sensor on'
+        else s:='location sensor off';
+      fLoggerProc(Self, s );
+    end;
 
   fCompassEventTime   := T;
 end;

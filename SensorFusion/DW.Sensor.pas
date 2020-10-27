@@ -64,11 +64,16 @@ implementation
 uses
   System.SysUtils,
   {$IFDEF Android}
-  DW.Sensor.Android;
+  DW.Sensor.Android;   // <-- native sensor code DelphiWorlds
+  // Om.Sensor.Android;   // <-- Uses System.Sensors, timer polling 100 ms
   {$ENDIF Android}
   {$IFDEF iOS}
   Om.Sensor.iOS;
   {$ENDIF iOS}
+  {$IFDEF MsWindows}
+  Om.Sensor.Windows;   // Om:
+  {$ENDIF MsWindows}
+
 
 { TCustomPlatformSensor }
 
