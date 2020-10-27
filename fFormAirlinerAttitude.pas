@@ -1,6 +1,8 @@
-unit fBoatAttitude2;    // 3d boat scene w/ camera controlled by phone attitude
+unit fFormAirlinerAttitude;    // 3d plane scene w/ airliner plane attitude controlled by phone sensors
 // --- by oMAR jun20 --//
-//     see https://github.com/omarreis/BoatAttitude
+// https://github.com/omarreis/AirlinerAttitude
+//
+// also see https://github.com/omarreis/BoatAttitude
 //-----------------------------------------------------------------------------
 
 interface
@@ -19,13 +21,13 @@ uses
   DW.PermissionsTypes,       // Android API Level 26+ permissions handling
   {$ENDIF ANDROID}
   MagnetometerAccelerometerFusion,  // TMagnetoAccelerometerFusion
-  FMX.Media;
+  FMX.Media, FlapLabel, FMX.Objects, FMX.Layouts, FMX.Viewport3D,
+  OmFmxCompassControl;
 
 type
-  TFormBoatAttitude = class(TForm3D)
+  TFormAirlinerAttitude = class(TForm)
     Light1: TLight;
     LightMaterialSource1: TLightMaterialSource;
-    modelBoat: TModel3D;
     layerDisplay: TLayer3D;
     Label1: TLabel;
     tbX: TTrackBar;
@@ -36,33 +38,37 @@ type
     labZ: TLabel;
     Camera1: TCamera;
     dummyCameraGroup: TDummy;
-    MediaPlayer1: TMediaPlayer;
     labAttitude: TLabel;
-    TextureMaterialSource1: TTextureMaterialSource;
     BoatMat01: TLightMaterialSource;
     Mesh1: TMesh;
-    planeSeaSurface: TPlane;
-    SeaTextureMaterial: TTextureMaterialSource;
-    dummyBoatGroup: TDummy;
     cbInvert: TSwitch;
-    modelLiteSpi: TModel3D;
-    planeMainSail: TPlane;
-    TextureMainSail: TTextureMaterialSource;
-    cbQuaternion: TSwitch;
     Label2: TLabel;
-    Label3: TLabel;
     textNorth: TText3D;
     diskSeaHorizon: TDisk;
     colorMaterialSourceSeaColor: TColorMaterialSource;
-    colorMaterialSourceSpinaker: TColorMaterialSource;
-    modelLiteSpiMat01: TLightMaterialSource;
     textEast: TText3D;
     textWest: TText3D;
     textSouth: TText3D;
-    timerStartSensorsiOS: TTimer;
-    procedure Form3DCreate(Sender: TObject);
-    procedure Form3DActivate(Sender: TObject);
-    procedure timerStartSensorsiOSTimer(Sender: TObject);
+    modelAirliner: TModel3D;
+    dummyAirliner: TDummy;
+    dummyDummy: TDummy;
+    dummySeaDisk: TDummy;
+    colorMaterialSourcePlane: TColorMaterialSource;
+    modelAirlinerMat01: TLightMaterialSource;
+    Viewport3D1: TViewport3D;
+    layoutPlaneControls: TLayout;
+    rectBlackPlaneControlls: TRectangle;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    flapHead: TFlapLabel;
+    FlapCharSet1: TFlapCharSet;
+    flapPitch: TFlapLabel;
+    flapRoll: TFlapLabel;
+    scaleCompass: TfmxCompassControl;
+    scaleAltitude: TfmxCompassControl;
+    procedure FormCreate(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
   private
     fDefaultRotation:TVector3D;
     fMagAccelFusion:TMagnetoAccelerometerFusion;
@@ -74,12 +80,11 @@ type
     {$IFDEF Android}
     procedure PermissionsResultHandler(Sender: TObject; const ARequestCode: Integer; const AResults: TPermissionResults);
     {$ENDIF Android}
-    procedure DoStartSensors;
   public
   end;
 
 var
-  FormBoatAttitude: TFormBoatAttitude;
+  FormAirlinerAttitude: TFormAirlinerAttitude;
 
 implementation
 
@@ -98,6 +103,8 @@ begin
 end;
 
 // from wikipedia https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+// by experience I found that this is more like ToQuaternion(roll,pitch,yaw)   or (z,x,y)
+// confusing ..
 procedure  ToQuaternion(const yaw,pitch,roll:Single; var q:TQuaternion3D);   // yaw (Z), pitch (Y), roll (X)
 var cy,sy,cp,sp,cr,sr,y,p,r:Single;
 begin
@@ -129,7 +136,7 @@ begin
   Repaint;
 end;
 
-procedure TFormBoatAttitude.Form3DCreate(Sender: TObject);
+procedure TFormAirlinerAttitude.FormCreate(Sender: TObject);
 var AppEventSvc: IFMXApplicationEventService;
    {$IFDEF IOS} AEService: IFMXApplicationEventService;  {$ENDIF IOS}
 begin
@@ -137,7 +144,7 @@ begin
   fMagAccelFusion := TMagnetoAccelerometerFusion.Create(Self);           //use sensor fusion
   //fMagAccelFusion.OnAccelerometerChange  := FusionSensorAccelChanged;  //not using those
   //fMagAccelFusion.OnMagnetometerChange   := FusionSensorMagChanged;
-  fMagAccelFusion.OnHeadingAltitudeChange := FusionSensorHeadingAltitudeChanged; // attitude change handler
+  fMagAccelFusion.OnHeadingAltitudeChange:= FusionSensorHeadingAltitudeChanged; // attitude change handler
 
   fDefaultRotation := TVector3D.Create(0,0,0);
 
@@ -155,26 +162,12 @@ begin
       IInterface(AEService)) then
         AEService.SetApplicationEventHandler(AppEventHandler);
   {$ENDIF IOS}
-end;
+  setFlapLabelsMode( {bGoDirect:} true );
 
-procedure TFormBoatAttitude.DoStartSensors;
-begin
-  {$IFDEF Android}  // request permissions to use sensors ( GPS, accel and mag )
-  FRequester.RequestPermissions([ cPermissionAccessCoarseLocation,   // location (gyro,aceler)
-                                  cPermissionAccessFineLocation],
-                                  cPermissionsBoatAttitude);     // commented out cPermissionAccessMockLocation
-  //  On Android, sensors are started after permission is checked
-  {$ENDIF Android}
-
-  {$IFDEF IOS}
-  // Oct20: I found that one cannot start LocationSensor from FormActivate or the sensor breaks
-  // used a Timer to defer sensor start a couple seconds ( for iOS )
-  timerStartSensorsiOS.Enabled := true;
-  {$ENDIF IOS}
 end;
 
 //handle AppEvents to detect Home btn pressed ( going to BG, disable sensors )
-function TFormBoatAttitude.AppEventHandler(AAppEvent: TApplicationEvent;  AContext: TObject): Boolean;
+function TFormAirlinerAttitude.AppEventHandler(AAppEvent: TApplicationEvent;  AContext: TObject): Boolean;
 var s:String;
 begin
   if (AAppEvent =  TApplicationEvent.EnteredBackground) then  // Home btn
@@ -182,26 +175,37 @@ begin
        fMagAccelFusion.StartStopSensors({bStart:} false );  //stop sensor feed
      end
   else if (AAppEvent = TApplicationEvent.BecameActive )  then
-    begin                            //returned from Home
-      DoStartSensors;                //restart sensor feed
+    begin   //returned from Home
+       fMagAccelFusion.StartStopSensors({bStart:} true );   //restart sensor feed
     end;
   Result := True; // apparently this doesn't matter on iOS
 end;
 
-procedure TFormBoatAttitude.Form3DActivate(Sender: TObject);
+procedure TFormAirlinerAttitude.FormActivate(Sender: TObject);
 begin
-  DoStartSensors;   // start sensor activation with permissions check
+  {$IFDEF Android}  // request permissions to work
+  FRequester.RequestPermissions([ cPermissionAccessCoarseLocation,   // location (gyro,aceler)
+                                  cPermissionAccessFineLocation],
+                                  cPermissionsBoatAttitude);     // commented out cPermissionAccessMockLocation
+  //  On Android, sensors are started after permission is checked
+  {$ENDIF Android}
+
+  {$IFDEF IOS}
+  fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed
+  {$ENDIF IOS}
   // show all stuff that might be left invisible at design time
   dummyCameraGroup.Visible := true;
-  dummyBoatGroup.Visible := true;
-  modelBoat.Visible := true;
-  modelLiteSpi.Visible := true;
-  planeMainSail.Visible := true;
-  layerDisplay.Visible := true;
+  // dummyBoatGroup.Visible := true;
+  // modelBoat.Visible := true;
+  // modelLiteSpi.Visible := true;
+  // planeMainSail.Visible := true;
+
+  dummyAirliner.Visible := true;
+  layerDisplay.Visible  := true;
 end;
 
 {$IFDEF Android}      // Android requires permissions for things like sensors
-procedure TFormBoatAttitude.PermissionsResultHandler(Sender: TObject; const ARequestCode: Integer; const AResults: TPermissionResults);
+procedure TFormAirlinerAttitude.PermissionsResultHandler(Sender: TObject; const ARequestCode: Integer; const AResults: TPermissionResults);
 var LDeniedResults: TPermissionResults;
     LDeniedPermissions: string; i:integer;
 begin
@@ -210,7 +214,7 @@ begin
     begin
       if AResults.AreAllGranted then  //all granted, start sensors (Android)
         begin
-          fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed for Android
+          fMagAccelFusion.StartStopSensors({bStart:} true );  //start sensor feed
         end
         else begin   // denied permissions
           LDeniedPermissions := '';
@@ -222,15 +226,7 @@ begin
     end;
   end;
 end;
-
 {$ENDIF Android}
-
-// for iOS start sensors after a 2 seconds timer
-procedure TFormBoatAttitude.timerStartSensorsiOSTimer(Sender: TObject);
-begin
-  fMagAccelFusion.StartStopSensors({bStart:} true );  //start ios sensor feed
-  timerStartSensorsiOS.Enabled := false;              //only once
-end;
 
 //------------------------------------------
 //       phone attitude axis ( Euler angles )
@@ -255,11 +251,11 @@ begin
 end;
 
 // handler for sensor fusion readings ( phone attitude chg )
-procedure TFormBoatAttitude.FusionSensorHeadingAltitudeChanged(Sender:TObject);
+procedure TFormAirlinerAttitude.FusionSensorHeadingAltitudeChanged(Sender:TObject);
 var aAlt,aHead,aRoll:Single; s:String;  aSignal:integer;
   Q:TQuaternion3D;
   aSensorVec,tbVec,defVec:TVector3D;
-
+  sH,sP,sR:String;
 begin
   aHead := fMagAccelFusion.fTCMagHeading;  // sensor fusion
   if (aHead=270) then aHead:=0;            // TESTE 270 means no magnetic readings ??
@@ -267,9 +263,20 @@ begin
   aAlt  := fMagAccelFusion.fAltitude;
   aRoll := fMagAccelFusion.fRoll;
 
-  s := 'Head:'+  Trim(Format('%5.0f°',[aHead]))+
-       ' Ele:'+  Trim(Format('%5.0f°',[aAlt ]))+
-       ' Roll:'+ Trim(Format('%5.0f°',[aRoll]));   // roll  -- az
+  scaleCompass.CenterAngle  := aHead;     // compass scale (ruler type)
+  scaleAltitude.CenterAngle := aAlt;
+
+  sH := Trim(Format('%4.0f°',[aHead]));
+  sP := Trim(Format('%4.0f°',[aAlt ]));
+  sR := Trim(Format('%4.0f°',[aRoll]));
+
+  flapHead.Caption  := sH;
+  flapPitch.Caption := sP;
+  flapRoll.Caption  := sR;
+
+  s := 'Head:' + sH+
+       ' Ele:' + sP+
+       ' Roll:'+ sR;   // roll  -- az
   Label1.Text := s;                                // alt   -- roll
 
   labX.Text := Format('%5.0f°', [ tbX.Value ]);   // trackbars are used to add extra rotations
@@ -284,27 +291,21 @@ begin
   if cbInvert.IsChecked then aSignal := -1
     else aSignal := +1;                // camera attitude = phone attitude
 
-  if not cbQuaternion.IsChecked then   //  default rotation method ( wrong! )
-    begin
-      // problem here: using Euler angles to continuously control obj rotation is trouble ( gymbal lock looses degree of freedon )
-      // phone ref
-      // altitude elevation pitch  X
-      // heading Az Yaw            Y
-      // roll                      Z
-      dummyCameraGroup.RotationAngle.X := normalize360( aSignal*( aAlt  +tbX.Value)+fDefaultRotation.X );
-      dummyCameraGroup.RotationAngle.Y := normalize360( aSignal*( aHead +tbY.Value)+fDefaultRotation.Y );
-      dummyCameraGroup.RotationAngle.Z := normalize360( aSignal*( aRoll +tbZ.Value)+fDefaultRotation.Z );
-    end
-    else begin  // vector algebra ahead
-      aSensorVec := TVector3D.Create( aAlt,aHead,aRoll  );                   //sensor reading
-      tbVec      := TVector3D.Create(tbX.Value, tbY.Value, tbZ.Value );      //trackbars (0..360)
-      defVec     := TVector3D.Create(fDefaultRotation.X,fDefaultRotation.Y,fDefaultRotation.Z);   // =0
-      aSensorVec := (aSensorVec+tbVec)*aSignal + defVec;    // sensor reading + trackbars + default rotation
+  aSensorVec := TVector3D.Create( aAlt,aHead,aRoll  );                   //sensor reading
+  tbVec      := TVector3D.Create(tbX.Value, tbY.Value, tbZ.Value );      //+ trackbars (0..360)
+  defVec     := TVector3D.Create(fDefaultRotation.X,fDefaultRotation.Y,fDefaultRotation.Z);   // default=0
+  aSensorVec := (aSensorVec+tbVec)*aSignal + defVec;    // sensor reading + trackbars + default rotation
 
-      ToQuaternion({yaw:}aSensorVec.z,{pitch:}aSensorVec.y,{roll:}aSensorVec.x, Q ); // axis order found by trial n error :( ?
+  //aSensorVec := -aSensorVec; ///invert test
 
-      dummyCameraGroup.SetMatrix(Q);   // rotate camera pointing to boat using quaternion
-    end;
+  // was ToQuaternion({yaw:}aSensorVec.z,{pitch:}0 {aSensorVec.y},{roll:}aSensorVec.x, Q ); // axis order found by trial n error :( ?
+  // it's more like:
+  // make plane pitch = roll/2, so when it rolls we can see the plane side ( like some real plane, i suppose )
+  ToQuaternion({roll:}aSensorVec.z,{pitch:} aSensorVec.z/2  {aSensorVec.y},{yaw:}aSensorVec.x, Q );
+
+  dummyAirliner.SetMatrix(Q);   // rotate camera pointing to boat using quaternion
+
+  dummySeaDisk.RotationAngle.Y := -aSensorVec.Y;  //rotate compass disk
 end;
 
 end.

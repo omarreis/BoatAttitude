@@ -3,7 +3,7 @@ program AirlinerAttitude;
 uses
   System.StartUpCopy,
   FMX.Forms,
-  fAirlinerAttitude in 'fAirlinerAttitude.pas' {FormBoatAttitude};
+  fFormAirlinerAttitude in 'fFormAirlinerAttitude.pas' {FormBoatAttitude};
 
 {$R *.res}
 

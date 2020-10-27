@@ -8,20 +8,16 @@ unit fAirlinerAttitude;    // 3d plane scene w/ airliner plane attitude controll
 interface
 
 uses
-  System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
+  System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants, System.Math.Vectors,
   FMX.Types, FMX.Controls, FMX.Forms3D, FMX.Types3D, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  System.Math.Vectors,
   FMX.Objects3D, FMX.MaterialSources, FMX.Controls3D, FMX.Controls.Presentation, FMX.StdCtrls,
-  FMX.Layers3D,
-  FMX.Platform,
-
+  FMX.Layers3D, FMX.Platform, FMX.Media,
   {$IFDEF ANDROID}
   FMX.Platform.Android,
-  DW.PermissionsRequester,   // Must have /D|elphiWorlds/KastriFree for Android permissions
+  DW.PermissionsRequester,   // include /DelphiWorlds/KastriFree for Android permissions
   DW.PermissionsTypes,       // Android API Level 26+ permissions handling
   {$ENDIF ANDROID}
-  MagnetometerAccelerometerFusion,  // TMagnetoAccelerometerFusion
-  FMX.Media;
+  MagnetometerAccelerometerFusion;  // TMagnetoAccelerometerFusion
 
 type
   TFormAirlinerAttitude = class(TForm3D)
@@ -94,17 +90,16 @@ end;
 // confusing ..
 procedure  ToQuaternion(const yaw,pitch,roll:Single; var q:TQuaternion3D);   // yaw (Z), pitch (Y), roll (X)
 var cy,sy,cp,sp,cr,sr,y,p,r:Single;
-begin
-  // Abbreviations for the various angular functions
+begin  // Abbreviations for the various angular functions
   y := deg2rad(yaw);   // deg to rad
   p := deg2rad(pitch);
   r := deg2rad(roll);
 
-  cy := cos(y * 0.5);   sy := sin(y * 0.5);
+  cy := cos(y * 0.5);   sy := sin(y * 0.5);    // memoise trigs
   cp := cos(p * 0.5);   sp := sin(p * 0.5);
   cr := cos(r * 0.5);   sr := sin(r * 0.5);
 
-  q.RealPart   := cr * cp * cy + sr * sp * sy;
+  q.RealPart   := cr * cp * cy + sr * sp * sy; // mk quaternion
   q.ImagPart.x := sr * cp * cy - cr * sp * sy;
   q.ImagPart.y := cr * sp * cy + sr * cp * sy;
   q.ImagPart.z := cr * cp * sy - sr * sp * cy;
