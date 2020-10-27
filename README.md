@@ -7,6 +7,8 @@ Delphi's *Gyroscope* sample app tries to do that, but does not quite gets there.
 
 Compiled with D10.3.3 and tested on Android and iOS.
 
+Oct/20: fixed issues with sensors with  D10.4.1  ( iOS and Android )
+
 ![app screenshot](BoatAttitudeShot.PNG)
 
 Tags: #Delphi #Firemonkey #Sensors #iOS #Android
