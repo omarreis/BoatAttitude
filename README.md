@@ -81,8 +81,8 @@ Bottom line: use quaternion for setting object rotations.
 * FiremonkeySensorFusion - https://github.com/omarreis/FiremonkeySensorFusion 
 
 ## tiktok videos:
-
-https://vm.tiktok.com/E2eQqP
+* BoatAttitude: https://vm.tiktok.com/E2eQqP
+* AirlinerAttitude w/ FiremonkeySensorFusion and TFlapLabel: https://www.tiktok.com/@omar_reis/video/6846360497550380294
 
 ## AirlinerAttitude
 AirlinerAttitude app (also in  this repository) is a similar sample app, this time featuring a airliner plane model.
@@ -91,8 +91,7 @@ Phone attitude sensors control:
 * airplane yaw is set to roll/2, so it points generally away from the phone, but we can see the plane side as it rolls (like a real plane would do, I suppose).
 * otherwise, airplane pitch and roll same as phone's.
 
-## tiktok video: AirlinerAttitude sample w/ FiremonkeySensorFusion and TFlapLabel
-https://www.tiktok.com/@omar_reis/video/6846360497550380294
-
 ![app screenshot](AirlinerAttitudeShot.PNG)
+
+...
 
